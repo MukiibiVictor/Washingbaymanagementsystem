@@ -173,7 +173,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-400 bg-clip-text text-transparent">
             User Management
           </h1>
           <p className="text-slate-600 mt-2">Manage system users and their roles</p>
@@ -316,7 +316,7 @@ export default function UsersPage() {
       </div>
 
       {/* Users List */}
-      <Card className=\"hover:shadow-lg transition-all\">
+      <Card className="hover:shadow-lg transition-all">
         <CardHeader>
           <CardTitle>System Users</CardTitle>
         </CardHeader>

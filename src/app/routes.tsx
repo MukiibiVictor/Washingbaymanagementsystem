@@ -5,6 +5,10 @@ import CheckInsPage from './pages/CheckInsPage';
 import TransactionsPage from './pages/TransactionsPage';
 import PricingPage from './pages/PricingPage';
 import UsersPage from './pages/UsersPage';
+import ExpensesPage from './pages/ExpensesPage';
+import ReportsPage from './pages/ReportsPage';
+import ProfilePage from './pages/ProfilePage';
+import UserProfilesPage from './pages/UserProfilesPage';
 import NotFoundPage from './pages/NotFoundPage';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -42,6 +46,22 @@ export const router = createBrowserRouter([
       {
         path: 'users',
         element: <UsersPage />,
+      },
+      {
+        path: 'expenses',
+        element: <ExpensesPage />,
+      },
+      {
+        path: 'reports',
+        element: <ReportsPage />,
+      },
+      {
+        path: 'profile',
+        element: <ProfilePage />,
+      },
+      {
+        path: 'user-profiles',
+        element: <UserProfilesPage />,
       },
       {
         path: '*',

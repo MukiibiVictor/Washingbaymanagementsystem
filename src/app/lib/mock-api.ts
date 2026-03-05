@@ -9,6 +9,7 @@ import {
   PaymentMethod,
   User,
 } from './types';
+import { dataEvents, DATA_EVENTS } from './events';
 
 // Mock data storage
 let mockCheckIns: CheckIn[] = [
@@ -215,22 +216,36 @@ export const checkInsApi = {
 
       mockTransactions.unshift(newTransaction);
 
+      // Emit events for real-time updates
+      dataEvents.emit(DATA_EVENTS.CHECKIN_CONFIRMED);
+      dataEvents.emit(DATA_EVENTS.TRANSACTION_CREATED);
+
       return { success: true, transaction: newTransaction };
     }
 
     return { success: false, error: 'Check-in not found' };
   },
 
-  upload: async (cameraId: number, imageFile: File): Promise<CheckIn> => {
+  upload: async (cameraId: number, imageFile: File | string): Promise<CheckIn> => {
     await delay(1000);
+    
+    // Handle both File objects and base64 strings
+    const imageUrl = typeof imageFile === 'string' 
+      ? imageFile // base64 string from camera
+      : URL.createObjectURL(imageFile); // File object from upload
+    
     const newCheckIn: CheckIn = {
       id: `ci-${Date.now()}`,
       camera_id: cameraId,
-      image_url: URL.createObjectURL(imageFile),
+      image_url: imageUrl,
       timestamp: new Date().toISOString(),
       status: 'pending',
     };
     mockCheckIns.unshift(newCheckIn);
+    
+    // Emit event for real-time updates
+    dataEvents.emit(DATA_EVENTS.CHECKIN_CREATED);
+    
     return newCheckIn;
   },
 };
@@ -292,6 +307,10 @@ export const paymentsApi = {
     };
 
     mockPayments.push(newPayment);
+
+    // Emit events for real-time updates
+    dataEvents.emit(DATA_EVENTS.PAYMENT_CREATED);
+    dataEvents.emit(DATA_EVENTS.TRANSACTION_UPDATED);
 
     return { success: true, payment: newPayment };
   },
@@ -478,5 +497,37 @@ export const usersApi = {
 
     mockUsers.splice(index, 1);
     return { success: true };
+  },
+
+  updateProfile: async (
+    id: string,
+    data: {
+      name?: string;
+      contact?: string;
+      id_number?: string;
+      profile_picture?: string;
+    }
+  ): Promise<{ success: boolean; user?: User; error?: string }> => {
+    await delay(400);
+
+    const index = mockUsers.findIndex((u) => u.id === id);
+    if (index === -1) {
+      return { success: false, error: 'User not found' };
+    }
+
+    mockUsers[index] = {
+      ...mockUsers[index],
+      ...(data.name && { name: data.name }),
+      ...(data.contact !== undefined && { contact: data.contact }),
+      ...(data.id_number !== undefined && { id_number: data.id_number }),
+      ...(data.profile_picture !== undefined && { profile_picture: data.profile_picture }),
+    };
+
+    return { success: true, user: mockUsers[index] };
+  },
+
+  getById: async (id: string): Promise<User | null> => {
+    await delay(200);
+    return mockUsers.find((u) => u.id === id) || null;
   },
 };

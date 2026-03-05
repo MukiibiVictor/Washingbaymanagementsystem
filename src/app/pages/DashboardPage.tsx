@@ -6,6 +6,7 @@ import { formatCurrency, formatTimeAgo } from '../lib/utils';
 import { DollarSign, Car, CreditCard, TrendingUp } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
+import { dataEvents, DATA_EVENTS } from '../lib/events';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -13,6 +14,21 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadStats();
+
+    // Listen for data changes and refresh
+    const handleDataChange = () => {
+      loadStats();
+    };
+
+    dataEvents.on(DATA_EVENTS.TRANSACTION_CREATED, handleDataChange);
+    dataEvents.on(DATA_EVENTS.TRANSACTION_UPDATED, handleDataChange);
+    dataEvents.on(DATA_EVENTS.PAYMENT_CREATED, handleDataChange);
+
+    return () => {
+      dataEvents.off(DATA_EVENTS.TRANSACTION_CREATED, handleDataChange);
+      dataEvents.off(DATA_EVENTS.TRANSACTION_UPDATED, handleDataChange);
+      dataEvents.off(DATA_EVENTS.PAYMENT_CREATED, handleDataChange);
+    };
   }, []);
 
   const loadStats = async () => {
@@ -50,7 +66,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">Dashboard</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-400 bg-clip-text text-transparent">Dashboard</h1>
           <p className="text-sm text-slate-500 mt-1">Today's Overview - March 4, 2026</p>
         </div>
       </div>
@@ -65,7 +81,7 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">{formatCurrency(stats.today_revenue)}</div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{formatCurrency(stats.today_revenue)}</div>
             <p className="text-xs text-slate-600 mt-1">Total collected today</p>
           </CardContent>
         </Card>
@@ -78,7 +94,7 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">{stats.vehicles_today}</div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.vehicles_today}</div>
             <p className="text-xs text-slate-600 mt-1">Vehicles today</p>
           </CardContent>
         </Card>
@@ -106,7 +122,7 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
+            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
               {stats.vehicles_today > 0
                 ? formatCurrency(Math.round(stats.today_revenue / stats.vehicles_today))
                 : formatCurrency(0)}
@@ -120,15 +136,15 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-slate-200 shadow-sm hover:shadow-lg transition-all">
           <CardHeader>
-            <CardTitle className="text-slate-900">Revenue by Vehicle Type</CardTitle>
+            <CardTitle className="text-slate-900 dark:text-slate-100">Revenue by Vehicle Type</CardTitle>
           </CardHeader>
           <CardContent>
             {stats.revenue_by_vehicle.length > 0 ? (
               <div className="space-y-3">
                 {stats.revenue_by_vehicle.map((item) => (
-                  <div key={item.vehicle_type} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 hover:shadow-md transition-all cursor-pointer">
-                    <span className="text-sm font-medium text-slate-700">{item.vehicle_type}</span>
-                    <span className="text-sm font-semibold text-slate-900">{formatCurrency(item.revenue)}</span>
+                  <div key={item.vehicle_type} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 hover:shadow-md transition-all cursor-pointer">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{item.vehicle_type}</span>
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(item.revenue)}</span>
                   </div>
                 ))}
               </div>
@@ -140,15 +156,15 @@ export default function DashboardPage() {
 
         <Card className="border-slate-200 shadow-sm hover:shadow-lg transition-all">
           <CardHeader>
-            <CardTitle className="text-slate-900">Revenue by Service Type</CardTitle>
+            <CardTitle className="text-slate-900 dark:text-slate-100">Revenue by Service Type</CardTitle>
           </CardHeader>
           <CardContent>
             {stats.revenue_by_service.length > 0 ? (
               <div className="space-y-3">
                 {stats.revenue_by_service.map((item) => (
-                  <div key={item.service_type} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 hover:shadow-md transition-all cursor-pointer">
-                    <span className="text-sm font-medium text-slate-700">{item.service_type}</span>
-                    <span className="text-sm font-semibold text-slate-900">{formatCurrency(item.revenue)}</span>
+                  <div key={item.service_type} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 hover:shadow-md transition-all cursor-pointer">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{item.service_type}</span>
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(item.revenue)}</span>
                   </div>
                 ))}
               </div>
@@ -162,7 +178,7 @@ export default function DashboardPage() {
       {/* Recent Transactions */}
       <Card className="border-slate-200 shadow-sm hover:shadow-lg transition-all">
         <CardHeader>
-          <CardTitle className="text-slate-900">Recent Transactions</CardTitle>
+          <CardTitle className="text-slate-900 dark:text-slate-100">Recent Transactions</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -178,14 +194,14 @@ export default function DashboardPage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-900">{tx.plate_number}</p>
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">{tx.plate_number}</p>
                   <p className="text-sm text-slate-600">
                     {tx.vehicle_type} • {tx.service_type}
                   </p>
                   <p className="text-xs text-slate-500">{formatTimeAgo(tx.created_at)}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="font-semibold text-slate-900">{formatCurrency(tx.price)}</p>
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(tx.price)}</p>
                   <Badge
                     variant={
                       tx.status === 'paid' ? 'default' : tx.status === 'credit' ? 'secondary' : 'outline'

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { formatTimeAgo, formatCurrency } from '../lib/utils';
 import { Camera, CheckCircle, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { dataEvents, DATA_EVENTS } from '../lib/events';
 
 const VEHICLE_TYPES: VehicleType[] = ['Sedan', 'SUV', 'Lorry', 'Fuso'];
 const SERVICE_TYPES: ServiceType[] = ['Wash', 'Wash & Wax', 'Full Detail', 'Interior Only'];
@@ -35,15 +36,52 @@ export default function CheckInsPage() {
   // Upload form state
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  
+  // Manual entry dialog state
+  const [manualEntryOpen, setManualEntryOpen] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+  const [manualPlateNumber, setManualPlateNumber] = useState('');
+  const [manualVehicleType, setManualVehicleType] = useState<VehicleType>('Sedan');
+  const [manualServiceType, setManualServiceType] = useState<ServiceType>('Wash');
+  const [manualPrice, setManualPrice] = useState('');
+  const [manualMinPrice, setManualMinPrice] = useState(0);
 
   useEffect(() => {
     loadCheckIns();
+
+    // Listen for data changes and refresh
+    const handleDataChange = () => {
+      loadCheckIns();
+    };
+
+    dataEvents.on(DATA_EVENTS.CHECKIN_CREATED, handleDataChange);
+    dataEvents.on(DATA_EVENTS.CHECKIN_CONFIRMED, handleDataChange);
+
+    return () => {
+      dataEvents.off(DATA_EVENTS.CHECKIN_CREATED, handleDataChange);
+      dataEvents.off(DATA_EVENTS.CHECKIN_CONFIRMED, handleDataChange);
+    };
   }, []);
 
   useEffect(() => {
     // Update minimum price when vehicle/service type changes
     loadMinPrice();
   }, [vehicleType, serviceType]);
+
+  useEffect(() => {
+    // Update minimum price for manual entry
+    loadManualMinPrice();
+  }, [manualVehicleType, manualServiceType]);
+
+  useEffect(() => {
+    // Cleanup video stream on unmount
+    return () => {
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [videoStream]);
 
   const loadCheckIns = async () => {
     setLoading(true);
@@ -56,6 +94,118 @@ export default function CheckInsPage() {
     const rules = await pricingRulesApi.getAll();
     const rule = rules.find((r) => r.vehicle_type === vehicleType && r.service_type === serviceType);
     setMinPrice(rule?.minimum_price || 0);
+  };
+
+  const loadManualMinPrice = async () => {
+    const rules = await pricingRulesApi.getAll();
+    const rule = rules.find((r) => r.vehicle_type === manualVehicleType && r.service_type === manualServiceType);
+    setManualMinPrice(rule?.minimum_price || 0);
+  };
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } 
+      });
+      setVideoStream(stream);
+      const video = document.getElementById('camera-preview') as HTMLVideoElement;
+      if (video) {
+        video.srcObject = stream;
+      }
+    } catch (error) {
+      toast.error('Unable to access camera. Please check permissions.');
+    }
+  };
+
+  const capturePhoto = () => {
+    const video = document.getElementById('camera-preview') as HTMLVideoElement;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(video, 0, 0);
+      const imageData = canvas.toDataURL('image/jpeg');
+      setCapturedImage(imageData);
+      
+      // Stop camera after capture
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        setVideoStream(null);
+      }
+    }
+  };
+
+  const retakePhoto = () => {
+    setCapturedImage(null);
+    startCamera();
+  };
+
+  const handleManualEntry = () => {
+    setManualEntryOpen(true);
+    setManualPlateNumber('');
+    setManualVehicleType('Sedan');
+    setManualServiceType('Wash');
+    setManualPrice('');
+    setCapturedImage(null);
+    setTimeout(() => startCamera(), 100);
+  };
+
+  const handleManualSubmit = async () => {
+    if (!user) return;
+
+    if (!capturedImage) {
+      toast.error('Please capture a photo of the vehicle');
+      return;
+    }
+
+    if (!manualPlateNumber.trim()) {
+      toast.error('Please enter plate number');
+      return;
+    }
+
+    const priceNum = parseInt(manualPrice);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+
+    if (priceNum < manualMinPrice) {
+      toast.error(`Price must be at least ${formatCurrency(manualMinPrice)}`);
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      // Create check-in with captured image
+      const checkIn = await checkInsApi.upload(1, capturedImage);
+      
+      // Immediately confirm it
+      const result = await checkInsApi.confirm(
+        checkIn.id,
+        {
+          vehicle_type: manualVehicleType,
+          service_type: manualServiceType,
+          price: priceNum,
+          plate_number: manualPlateNumber,
+        },
+        user.name
+      );
+
+      if (result.success) {
+        toast.success('Vehicle recorded and transaction created successfully');
+        setManualEntryOpen(false);
+        setCapturedImage(null);
+        loadCheckIns();
+      } else {
+        toast.error(result.error || 'Failed to create transaction');
+      }
+    } catch (error) {
+      toast.error('Failed to record vehicle');
+    }
+
+    setUploading(false);
   };
 
   const handleConfirmClick = (checkIn: CheckIn) => {
@@ -132,14 +282,20 @@ export default function CheckInsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">Pending Check-ins</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-400 bg-clip-text text-transparent">Pending Check-ins</h1>
           <p className="text-sm text-slate-500 mt-1">Camera uploads awaiting confirmation</p>
         </div>
         {canConfirm && (
-          <Button onClick={() => setUploadDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-            <Upload className="w-4 h-4 mr-2" />
-            Simulate Camera Upload
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setUploadDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Upload className="w-4 h-4 mr-2" />
+              Simulate Camera
+            </Button>
+            <Button onClick={handleManualEntry} className="bg-green-600 hover:bg-green-700">
+              <Camera className="w-4 h-4 mr-2" />
+              Manual Entry
+            </Button>
+          </div>
         )}
       </div>
 
@@ -152,7 +308,7 @@ export default function CheckInsPage() {
               <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Camera className="w-10 h-10 text-slate-400" />
               </div>
-              <p className="text-lg font-medium text-slate-900">No pending check-ins</p>
+              <p className="text-lg font-medium text-slate-900 dark:text-slate-100">No pending check-ins</p>
               <p className="text-sm text-slate-500 mt-1">
                 Waiting for camera uploads or all check-ins have been processed
               </p>
@@ -176,13 +332,13 @@ export default function CheckInsPage() {
                   <img src={checkIn.image_url} alt="Vehicle" className="w-full h-full object-cover hover:scale-110 transition-all" />
                 </div>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm hover:bg-slate-50 p-2 rounded transition-all">
+                  <div className="flex items-center justify-between text-sm hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded transition-all">
                     <span className="text-slate-500">Camera ID:</span>
-                    <span className="font-medium text-slate-900">{checkIn.camera_id}</span>
+                    <span className="font-medium text-slate-900 dark:text-slate-100">{checkIn.camera_id}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm hover:bg-slate-50 p-2 rounded transition-all">
+                  <div className="flex items-center justify-between text-sm hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded transition-all">
                     <span className="text-slate-500">Time:</span>
-                    <span className="font-medium text-slate-900">{formatTimeAgo(checkIn.timestamp)}</span>
+                    <span className="font-medium text-slate-900 dark:text-slate-100">{formatTimeAgo(checkIn.timestamp)}</span>
                   </div>
                 </div>
                 {canConfirm && (
@@ -199,13 +355,13 @@ export default function CheckInsPage() {
 
       {/* Confirm Dialog */}
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Confirm Vehicle Service</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 pb-2">
             {selectedCheckIn && (
-              <div className="aspect-video bg-gray-100 rounded overflow-hidden">
+              <div className="w-full h-48 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                 <img
                   src={selectedCheckIn.image_url}
                   alt="Vehicle"
@@ -214,67 +370,69 @@ export default function CheckInsPage() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="plate">Plate Number</Label>
-              <Input
-                id="plate"
-                placeholder="e.g. UBR123A"
-                value={plateNumber}
-                onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="plate">Plate Number</Label>
+                <Input
+                  id="plate"
+                  placeholder="e.g. UBR123A"
+                  value={plateNumber}
+                  onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="vehicle-type">Vehicle Type</Label>
+                <Select value={vehicleType} onValueChange={(v) => setVehicleType(v as VehicleType)}>
+                  <SelectTrigger id="vehicle-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VEHICLE_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="service-type">Service Type</Label>
+                <Select value={serviceType} onValueChange={(v) => setServiceType(v as ServiceType)}>
+                  <SelectTrigger id="service-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SERVICE_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="price">Price (UGX)</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  placeholder="Enter price"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                />
+                {minPrice > 0 && (
+                  <p className="text-xs text-gray-500">Minimum: {formatCurrency(minPrice)}</p>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="vehicle-type">Vehicle Type</Label>
-              <Select value={vehicleType} onValueChange={(v) => setVehicleType(v as VehicleType)}>
-                <SelectTrigger id="vehicle-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {VEHICLE_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="service-type">Service Type</Label>
-              <Select value={serviceType} onValueChange={(v) => setServiceType(v as ServiceType)}>
-                <SelectTrigger id="service-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SERVICE_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="price">Price (UGX)</Label>
-              <Input
-                id="price"
-                type="number"
-                placeholder="Enter price"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-              />
-              {minPrice > 0 && (
-                <p className="text-xs text-gray-500">Minimum: {formatCurrency(minPrice)}</p>
-              )}
-            </div>
-
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2 sticky bottom-0 bg-white">
               <Button variant="outline" className="flex-1" onClick={() => setConfirmDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button className="flex-1" onClick={handleConfirmSubmit} disabled={confirming}>
+              <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={handleConfirmSubmit} disabled={confirming}>
                 {confirming ? 'Confirming...' : 'Confirm'}
               </Button>
             </div>
@@ -289,7 +447,7 @@ export default function CheckInsPage() {
             <DialogTitle>Simulate Camera Upload</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Upload a vehicle image to simulate a camera check-in. In production, this would be an automated
               API endpoint.
             </p>
@@ -313,8 +471,147 @@ export default function CheckInsPage() {
               >
                 Cancel
               </Button>
-              <Button className="flex-1" onClick={handleUploadSubmit} disabled={uploading || !uploadFile}>
+              <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={handleUploadSubmit} disabled={uploading || !uploadFile}>
                 {uploading ? 'Uploading...' : 'Upload'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Entry Dialog */}
+      <Dialog open={manualEntryOpen} onOpenChange={(open) => {
+        setManualEntryOpen(open);
+        if (!open && videoStream) {
+          videoStream.getTracks().forEach(track => track.stop());
+          setVideoStream(null);
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manual Vehicle Entry</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              📸 Capture a photo of the vehicle and enter details manually when cameras are offline
+            </p>
+
+            {/* Camera Preview / Captured Image */}
+            <div className="space-y-2">
+              <Label>Vehicle Photo</Label>
+              <div className="relative w-full h-64 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
+                {!capturedImage ? (
+                  <>
+                    <video
+                      id="camera-preview"
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-cover"
+                    />
+                    <Button
+                      onClick={capturePhoto}
+                      className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-600 hover:bg-blue-700"
+                      disabled={!videoStream}
+                    >
+                      <Camera className="w-4 h-4 mr-2" />
+                      Capture Photo
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <img src={capturedImage} alt="Captured vehicle" className="w-full h-full object-cover" />
+                    <Button
+                      onClick={retakePhoto}
+                      className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-600 hover:bg-slate-700"
+                    >
+                      <Camera className="w-4 h-4 mr-2" />
+                      Retake Photo
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Vehicle Details Form */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="manual-plate">Plate Number</Label>
+                <Input
+                  id="manual-plate"
+                  placeholder="e.g. UBR123A"
+                  value={manualPlateNumber}
+                  onChange={(e) => setManualPlateNumber(e.target.value.toUpperCase())}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="manual-vehicle-type">Vehicle Type</Label>
+                <Select value={manualVehicleType} onValueChange={(v) => setManualVehicleType(v as VehicleType)}>
+                  <SelectTrigger id="manual-vehicle-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VEHICLE_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="manual-service-type">Service Type</Label>
+                <Select value={manualServiceType} onValueChange={(v) => setManualServiceType(v as ServiceType)}>
+                  <SelectTrigger id="manual-service-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SERVICE_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="manual-price">Price (UGX)</Label>
+                <Input
+                  id="manual-price"
+                  type="number"
+                  placeholder="Enter price"
+                  value={manualPrice}
+                  onChange={(e) => setManualPrice(e.target.value)}
+                />
+                {manualMinPrice > 0 && (
+                  <p className="text-xs text-slate-500">Minimum: {formatCurrency(manualMinPrice)}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setManualEntryOpen(false);
+                  if (videoStream) {
+                    videoStream.getTracks().forEach(track => track.stop());
+                    setVideoStream(null);
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                className="flex-1 bg-green-600 hover:bg-green-700" 
+                onClick={handleManualSubmit} 
+                disabled={uploading || !capturedImage}
+              >
+                {uploading ? 'Recording...' : 'Record Vehicle'}
               </Button>
             </div>
           </div>

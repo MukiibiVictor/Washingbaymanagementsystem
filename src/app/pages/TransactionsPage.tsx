@@ -7,17 +7,20 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
+import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { DollarSign, Car } from 'lucide-react';
 import { toast } from 'sonner';
+import { dataEvents, DATA_EVENTS } from '../lib/events';
 
-const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
-  { value: 'cash', label: 'Cash' },
-  { value: 'mobile_money', label: 'Mobile Money' },
-  { value: 'card', label: 'Card' },
-  { value: 'credit', label: 'On Credit' },
+const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon?: string }[] = [
+  { value: 'cash', label: 'Cash', icon: '💵' },
+  { value: 'mtn_mobile_money', label: 'MTN Mobile Money', icon: '📱' },
+  { value: 'airtel_mobile_money', label: 'Airtel Money', icon: '📱' },
+  { value: 'card', label: 'Card', icon: '💳' },
+  { value: 'credit', label: 'On Credit', icon: '📝' },
 ];
 
 export default function TransactionsPage() {
@@ -28,11 +31,27 @@ export default function TransactionsPage() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [processing, setProcessing] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
     loadTransactions();
+
+    // Listen for data changes and refresh
+    const handleDataChange = () => {
+      loadTransactions();
+    };
+
+    dataEvents.on(DATA_EVENTS.TRANSACTION_CREATED, handleDataChange);
+    dataEvents.on(DATA_EVENTS.TRANSACTION_UPDATED, handleDataChange);
+    dataEvents.on(DATA_EVENTS.PAYMENT_CREATED, handleDataChange);
+
+    return () => {
+      dataEvents.off(DATA_EVENTS.TRANSACTION_CREATED, handleDataChange);
+      dataEvents.off(DATA_EVENTS.TRANSACTION_UPDATED, handleDataChange);
+      dataEvents.off(DATA_EVENTS.PAYMENT_CREATED, handleDataChange);
+    };
   }, []);
 
   const loadTransactions = async () => {
@@ -51,11 +70,18 @@ export default function TransactionsPage() {
   const handlePaymentClick = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
     setPaymentMethod('cash');
+    setPhoneNumber('');
     setPaymentDialogOpen(true);
   };
 
   const handlePaymentSubmit = async () => {
     if (!selectedTransaction || !user) return;
+
+    // Validate phone number for mobile money
+    if ((paymentMethod === 'mtn_mobile_money' || paymentMethod === 'airtel_mobile_money') && !phoneNumber) {
+      toast.error('Please enter phone number for mobile money payment');
+      return;
+    }
 
     setProcessing(true);
 
@@ -67,10 +93,14 @@ export default function TransactionsPage() {
     );
 
     if (result.success) {
+      const methodLabel = PAYMENT_METHODS.find(m => m.value === paymentMethod)?.label;
       toast.success(
-        paymentMethod === 'credit' ? 'Transaction marked as credit' : 'Payment recorded successfully'
+        paymentMethod === 'credit' 
+          ? 'Transaction marked as credit' 
+          : `Payment recorded successfully via ${methodLabel}`
       );
       setPaymentDialogOpen(false);
+      setPhoneNumber('');
       loadTransactions();
     } else {
       toast.error('Failed to process payment');
@@ -274,12 +304,39 @@ export default function TransactionsPage() {
                   <SelectContent>
                     {PAYMENT_METHODS.map((method) => (
                       <SelectItem key={method.value} value={method.value}>
-                        {method.label}
+                        {method.icon} {method.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Phone Number for Mobile Money */}
+              {(paymentMethod === 'mtn_mobile_money' || paymentMethod === 'airtel_mobile_money') && (
+                <div className="space-y-2">
+                  <Label htmlFor="phone-number">Phone Number</Label>
+                  <Input
+                    id="phone-number"
+                    type="tel"
+                    placeholder="e.g. 0700123456"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-slate-500">
+                    {paymentMethod === 'mtn_mobile_money' ? 'MTN' : 'Airtel'} registered phone number
+                  </p>
+                </div>
+              )}
+
+              {/* Cash Transaction Note */}
+              {paymentMethod === 'cash' && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    💵 Cash payment will be recorded immediately
+                  </p>
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button

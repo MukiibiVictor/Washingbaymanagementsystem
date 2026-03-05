@@ -7,7 +7,7 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Car } from 'lucide-react';
 import { toast } from 'sonner';
-import zeroLogo from 'figma:asset/7c8b52700404010ef9d70a93ba8a793d0656723b.png';
+import zeroLogo from '../../assets/7c8b52700404010ef9d70a93ba8a793d0656723b.png';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -34,14 +34,99 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 relative overflow-hidden">
-      {/* Background Logo */}
-      <div 
-        className="absolute inset-0 bg-center bg-no-repeat opacity-5"
-        style={{
-          backgroundImage: `url(${zeroLogo})`,
-          backgroundSize: '60%',
-        }}
-      />
+      {/* Multiple Background Logos - Fading Pattern */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Top Left */}
+        <div 
+          className="absolute top-10 left-10 w-48 h-48 opacity-[0.015] animate-pulse"
+          style={{
+            backgroundImage: `url(${zeroLogo})`,
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+            filter: 'brightness(0) invert(1)',
+            animationDuration: '4s',
+          }}
+        />
+        {/* Top Right */}
+        <div 
+          className="absolute top-20 right-20 w-64 h-64 opacity-[0.02] animate-pulse"
+          style={{
+            backgroundImage: `url(${zeroLogo})`,
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+            filter: 'brightness(0) invert(1)',
+            animationDuration: '5s',
+            animationDelay: '1s',
+          }}
+        />
+        {/* Center Large */}
+        <div 
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 opacity-[0.01] animate-pulse"
+          style={{
+            backgroundImage: `url(${zeroLogo})`,
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+            filter: 'brightness(0) invert(1)',
+            animationDuration: '6s',
+            animationDelay: '2s',
+          }}
+        />
+        {/* Bottom Left */}
+        <div 
+          className="absolute bottom-20 left-32 w-56 h-56 opacity-[0.015] animate-pulse"
+          style={{
+            backgroundImage: `url(${zeroLogo})`,
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+            filter: 'brightness(0) invert(1)',
+            animationDuration: '5.5s',
+            animationDelay: '0.5s',
+          }}
+        />
+        {/* Bottom Right */}
+        <div 
+          className="absolute bottom-10 right-10 w-40 h-40 opacity-[0.02] animate-pulse"
+          style={{
+            backgroundImage: `url(${zeroLogo})`,
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+            filter: 'brightness(0) invert(1)',
+            animationDuration: '4.5s',
+            animationDelay: '1.5s',
+          }}
+        />
+        {/* Middle Right */}
+        <div 
+          className="absolute top-1/3 right-10 w-52 h-52 opacity-[0.012] animate-pulse"
+          style={{
+            backgroundImage: `url(${zeroLogo})`,
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+            filter: 'brightness(0) invert(1)',
+            animationDuration: '5s',
+            animationDelay: '2.5s',
+          }}
+        />
+        {/* Middle Left */}
+        <div 
+          className="absolute top-2/3 left-20 w-44 h-44 opacity-[0.018] animate-pulse"
+          style={{
+            backgroundImage: `url(${zeroLogo})`,
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+            filter: 'brightness(0) invert(1)',
+            animationDuration: '4.8s',
+            animationDelay: '0.8s',
+          }}
+        />
+      </div>
       
       <Card className="w-full max-w-md relative z-10 border-slate-700 bg-slate-900/90 backdrop-blur-sm hover:shadow-2xl hover:scale-105 transition-all">
         <CardHeader className="space-y-1 text-center">

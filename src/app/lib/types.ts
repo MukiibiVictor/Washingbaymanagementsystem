@@ -8,6 +8,9 @@ export interface User {
   role: UserRole;
   created_at: string;
   last_login?: string;
+  profile_picture?: string;
+  contact?: string;
+  id_number?: string;
 }
 
 // Camera & Check-in Types
@@ -49,7 +52,7 @@ export interface PricingRule {
 
 // Transaction Types
 export type TransactionStatus = 'pending' | 'paid' | 'credit';
-export type PaymentMethod = 'cash' | 'mobile_money' | 'card' | 'credit';
+export type PaymentMethod = 'cash' | 'mtn_mobile_money' | 'airtel_mobile_money' | 'card' | 'credit';
 
 export interface Transaction {
   id: string;
@@ -72,6 +75,65 @@ export interface Payment {
   amount: number;
   created_at: string;
   created_by: string;
+  phone_number?: string; // For mobile money
+  reference_number?: string; // Transaction reference
+}
+
+// Expense Types
+export interface Expense {
+  id: string;
+  category: ExpenseCategory;
+  description: string;
+  amount: number;
+  date: string;
+  created_by: string;
+  created_at: string;
+  receipt_url?: string;
+}
+
+export type ExpenseCategory = 
+  | 'supplies' 
+  | 'utilities' 
+  | 'salaries' 
+  | 'maintenance' 
+  | 'equipment' 
+  | 'marketing' 
+  | 'other';
+
+// Financial Reports
+export interface DailyReport {
+  date: string;
+  revenue: number;
+  expenses: number;
+  net_income: number;
+  transactions_count: number;
+  expenses_count: number;
+}
+
+export interface WeeklyReport {
+  week_start: string;
+  week_end: string;
+  revenue: number;
+  expenses: number;
+  net_income: number;
+  daily_breakdown: DailyReport[];
+}
+
+export interface MonthlyReport {
+  month: string;
+  year: number;
+  revenue: number;
+  expenses: number;
+  net_income: number;
+  weekly_breakdown: WeeklyReport[];
+  expense_by_category: { category: ExpenseCategory; amount: number }[];
+}
+
+export interface TrendData {
+  date: string;
+  revenue: number;
+  expenses: number;
+  net_income: number;
 }
 
 // Dashboard Stats

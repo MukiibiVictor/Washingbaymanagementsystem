@@ -1,179 +1,124 @@
-# Backend Integration Guide
+# Integration Guide
 
-This React frontend is ready to connect to your Django backend. Follow these steps:
+## Manual Vehicle Check-in with Camera Capture
 
-## 🔌 Connecting to Django Backend
+### Overview
+The system now supports manual vehicle entry when cameras are offline. Users can capture photos using their device camera and manually enter vehicle details.
 
-### 1. Update API Endpoints
+### Features Implemented
 
-Replace the mock API in `/src/app/lib/mock-api.ts` with real API calls:
+#### 1. Camera Capture
+- Live camera preview using MediaDevices API
+- Photo capture and retake functionality
+- Automatic camera cleanup on dialog close
+- Support for both front and rear cameras (prefers rear/environment camera)
 
+#### 2. Manual Entry Form
+- Plate number input (auto-uppercase)
+- Vehicle type selection (Sedan, SUV, Lorry, Fuso)
+- Service type selection (Wash, Wash & Wax, Full Detail, Interior Only)
+- Price input with minimum price validation
+- Real-time minimum price display based on vehicle and service type
+
+#### 3. Base64 Image Support
+- Updated `checkInsApi.upload()` to accept both File objects and base64 strings
+- Camera captures are converted to base64 format
+- Seamless integration with existing check-in flow
+
+#### 4. Immediate Transaction Creation
+- Manual entries create a check-in and immediately confirm it as a transaction
+- Single-step process for faster data entry
+- Transaction appears immediately in all relevant pages
+
+### Real-Time Data Updates
+
+#### Event System
+Created a simple event emitter system (`src/app/lib/events.ts`) that enables real-time updates across all pages.
+
+#### Supported Events
+- `TRANSACTION_CREATED` - When a new transaction is created
+- `TRANSACTION_UPDATED` - When a transaction status changes
+- `PAYMENT_CREATED` - When a payment is recorded
+- `CHECKIN_CREATED` - When a new check-in is uploaded
+- `CHECKIN_CONFIRMED` - When a check-in is confirmed
+
+#### Pages with Real-Time Updates
+1. **DashboardPage** - Automatically refreshes stats when transactions/payments change
+2. **TransactionsPage** - Updates transaction lists in real-time
+3. **CheckInsPage** - Refreshes pending check-ins when new ones are created or confirmed
+
+### How It Works
+
+#### Manual Entry Flow
+1. User clicks "Manual Entry" button on Check-ins page
+2. Camera preview starts automatically
+3. User captures photo of vehicle
+4. User can retake photo if needed
+5. User fills in vehicle details (plate, type, service, price)
+6. System validates minimum price
+7. On submit:
+   - Creates check-in with captured image (base64)
+   - Immediately confirms check-in as transaction
+   - Emits events for real-time updates
+   - All pages refresh automatically
+
+#### Real-Time Update Flow
+1. User action triggers data change (e.g., manual entry, payment)
+2. API function emits relevant event(s)
+3. All subscribed pages receive event notification
+4. Pages automatically reload their data
+5. UI updates without manual refresh
+
+### Usage
+
+#### For Admins/SuperAdmins
+- Access "Manual Entry" button on Check-ins page
+- Grant camera permissions when prompted
+- Capture vehicle photo
+- Enter vehicle details
+- Submit to create transaction
+
+#### Camera Permissions
+- Browser will request camera access on first use
+- User must grant permission for camera to work
+- If denied, user will see error message
+- Permissions can be reset in browser settings
+
+### Technical Details
+
+#### API Changes
 ```typescript
-// Example: Replace mock checkInsApi with real API
-export const checkInsApi = {
-  getPending: async (): Promise<CheckIn[]> => {
-    const response = await fetch('http://your-django-api.com/api/checkins?status=pending', {
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    return response.json();
-  },
+// Before: Only accepted File objects
+upload: async (cameraId: number, imageFile: File): Promise<CheckIn>
 
-  confirm: async (id: string, data: any, adminName: string) => {
-    const response = await fetch(`http://your-django-api.com/api/checkins/${id}/confirm`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    return response.json();
-  },
-};
+// After: Accepts both File objects and base64 strings
+upload: async (cameraId: number, imageFile: File | string): Promise<CheckIn>
 ```
 
-### 2. Update Authentication
-
-Replace the mock authentication in `/src/app/lib/auth-context.tsx`:
-
+#### Event Subscription Pattern
 ```typescript
-const login = async (email: string, password: string): Promise<boolean> => {
-  try {
-    const response = await fetch('http://your-django-api.com/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+useEffect(() => {
+  const handleDataChange = () => {
+    loadData();
+  };
 
-    if (response.ok) {
-      const data = await response.json();
-      localStorage.setItem('authToken', data.token);
-      setUser(data.user);
-      return true;
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
-};
+  dataEvents.on(DATA_EVENTS.TRANSACTION_CREATED, handleDataChange);
+
+  return () => {
+    dataEvents.off(DATA_EVENTS.TRANSACTION_CREATED, handleDataChange);
+  };
+}, []);
 ```
 
-### 3. Environment Variables
+### Browser Compatibility
+- Camera API requires HTTPS in production
+- Works on localhost for development
+- Supported on modern browsers (Chrome, Firefox, Safari, Edge)
+- Mobile browsers fully supported
 
-Create a `.env` file:
-
-```
-VITE_API_URL=http://localhost:8000/api
-```
-
-Then use it in your code:
-
-```typescript
-const API_URL = import.meta.env.VITE_API_URL;
-```
-
-## 📋 Django Backend Requirements
-
-Your Django backend should provide these endpoints:
-
-### Authentication
-- `POST /api/auth/login` - User login (returns JWT token)
-- `POST /api/auth/logout` - User logout
-
-### Check-ins
-- `GET /api/checkins` - List all check-ins
-- `GET /api/checkins?status=pending` - List pending check-ins
-- `POST /api/checkins` - Create check-in (camera upload)
-- `POST /api/checkins/{id}/confirm` - Confirm check-in
-
-### Transactions
-- `GET /api/transactions` - List all transactions
-- `GET /api/transactions?status=pending` - Pending transactions
-- `GET /api/transactions?status=credit` - Credit transactions
-- `GET /api/transactions/{id}` - Get single transaction
-
-### Payments
-- `POST /api/transactions/{id}/payment` - Record payment
-- `GET /api/payments` - List all payments
-
-### Pricing Rules
-- `GET /api/pricing-rules` - List all pricing rules
-- `PUT /api/pricing-rules/{id}` - Update pricing rule
-
-### Dashboard
-- `GET /api/reports/daily` - Daily statistics
-
-### Users
-- `GET /api/users` - List all users
-- `POST /api/users` - Create user (SuperAdmin only)
-- `PUT /api/users/{id}` - Update user
-
-## 🔒 CORS Configuration
-
-In your Django settings:
-
-```python
-INSTALLED_APPS = [
-    # ...
-    'corsheaders',
-]
-
-MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
-    # ...
-]
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite dev server
-    "https://your-production-domain.com",
-]
-```
-
-## 📸 Image Storage
-
-For camera uploads, configure Django to handle multipart/form-data:
-
-```python
-# Django view example
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-
-@api_view(['POST'])
-def camera_upload(request):
-    camera_id = request.POST.get('camera_id')
-    image = request.FILES.get('image')
-    
-    # Save to local storage or S3
-    checkin = CheckIn.objects.create(
-        camera_id=camera_id,
-        image=image,
-        status='pending'
-    )
-    
-    return Response({
-        'id': checkin.id,
-        'image_url': checkin.image.url,
-        'timestamp': checkin.timestamp,
-    })
-```
-
-## 🎯 Current Demo Credentials
-
-The frontend currently has these demo accounts (update once Django is connected):
-
-- **SuperAdmin**: admin@zoriautospa.com / admin123
-- **Admin**: staff@zoriautospa.com / staff123
-- **Viewer**: viewer@zoriautospa.com / viewer123
-
-## 📊 Data Models Match
-
-The TypeScript types in `/src/app/lib/types.ts` match your Django models. Ensure your serializers return data in this format.
-
-## 🚀 Production Deployment
-
-1. Build the frontend: `npm run build`
-2. Serve the `dist` folder via Django's static files or a CDN
-3. Update `VITE_API_URL` to your production API URL
+### Future Enhancements
+- Add image compression for base64 images
+- Store images in backend/cloud storage
+- Add offline support with service workers
+- Implement image quality validation
+- Add multiple photo capture per vehicle
