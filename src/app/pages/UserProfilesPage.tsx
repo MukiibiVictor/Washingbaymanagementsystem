@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth-context';
-import { usersApi } from '../lib/mock-api';
+import { usersApi } from '../lib/api-service';
 import { User } from '../lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';

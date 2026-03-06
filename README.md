@@ -26,30 +26,47 @@ This is a code bundle for Washing Bay Management System. The original project is
 - Check-ins page reflects new entries immediately
 - No manual page refresh needed
 
+## Quick Start
+
+See **[QUICK_START.md](QUICK_START.md)** for a step-by-step guide to get started in 3 minutes!
+
 ## Running the Code
 
-### Frontend
-```bash
-npm i
-npm run dev
-```
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn
 
-### Backend
+### Backend Setup
 ```bash
 cd server
-npm i
+npm install
 npm start
 ```
+Backend runs on: http://localhost:3001
 
-The frontend will run on `http://localhost:5173` and the backend on `http://localhost:3001`.
+### Frontend Setup
+```bash
+npm install
+npm run dev
+```
+Frontend runs on: http://localhost:5173
+
+### Important Notes
+- Backend must be running before starting frontend
+- Data is stored in-memory (resets on server restart)
+- For production, migrate to PostgreSQL or MongoDB
 
 ## Documentation
 
+- **[QUICK_START.md](QUICK_START.md)** - Get started in 3 minutes
+- **[PERFORMANCE_IMPROVEMENTS.md](PERFORMANCE_IMPROVEMENTS.md)** - Latest performance fixes and payment flow
+- **[DATABASE_INTEGRATION.md](DATABASE_INTEGRATION.md)** - Backend connection and API integration
 - **[BACKEND_SETUP.md](BACKEND_SETUP.md)** - Backend API documentation
 - **[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)** - Manual entry and real-time updates guide
 - **[FINANCIAL_FEATURES.md](FINANCIAL_FEATURES.md)** - Financial tracking features
 - **[THEME_GUIDE.md](THEME_GUIDE.md)** - Dark/Light mode customization
-- **[TASK_COMPLETION_SUMMARY.md](TASK_COMPLETION_SUMMARY.md)** - Latest implementation summary
+- **[MIGRATION_SUMMARY.md](MIGRATION_SUMMARY.md)** - Database migration details
+- **[TASK_COMPLETION_SUMMARY.md](TASK_COMPLETION_SUMMARY.md)** - Implementation summary
 
 ## User Roles
 

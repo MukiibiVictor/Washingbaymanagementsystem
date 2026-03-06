@@ -11,72 +11,38 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', express.static('uploads'));
 
-// In-memory database
+// In-memory database - starts empty, only default admin user and pricing rules
 const db = {
   users: [
-    { id: '1', email: 'admin@zoriautospa.com', password: 'admin123', name: 'John Admin', role: 'superadmin', created_at: new Date().toISOString() },
-    { id: '2', email: 'staff@zoriautospa.com', password: 'staff123', name: 'Mary Staff', role: 'admin', created_at: new Date().toISOString() },
-    { id: '3', email: 'viewer@zoriautospa.com', password: 'viewer123', name: 'Tom Viewer', role: 'viewer', created_at: new Date().toISOString() }
-  ],
-  checkins: [
-    {
-      id: 'ci-001',
-      camera_id: 1,
-      image_url: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d',
-      timestamp: new Date(Date.now() - 3600000).toISOString(),
-      status: 'pending'
-    },
-    {
-      id: 'ci-002',
-      camera_id: 1,
-      image_url: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d',
-      timestamp: new Date(Date.now() - 1800000).toISOString(),
-      status: 'pending'
-    },
-    {
-      id: 'ci-003',
-      camera_id: 1,
-      image_url: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf',
-      timestamp: new Date(Date.now() - 900000).toISOString(),
-      status: 'pending'
+    { 
+      id: '1', 
+      email: 'admin@zoriautospa.com', 
+      password: 'admin123', 
+      name: 'Admin User', 
+      role: 'superadmin', 
+      created_at: new Date().toISOString() 
     }
   ],
-  transactions: [
-    {
-      id: 'tx-001',
-      checkin_id: 'ci-100',
-      vehicle_type: 'SUV',
-      service_type: 'Wash',
-      plate_number: 'UBR123A',
-      price: 15000,
-      status: 'paid',
-      admin_id: '1',
-      admin_name: 'John Admin',
-      created_at: new Date(Date.now() - 7200000).toISOString(),
-      image_url: 'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b'
-    },
-    {
-      id: 'tx-002',
-      checkin_id: 'ci-101',
-      vehicle_type: 'Sedan',
-      service_type: 'Wash & Wax',
-      plate_number: 'UAH456B',
-      price: 18000,
-      status: 'paid',
-      admin_id: '2',
-      admin_name: 'Mary Staff',
-      created_at: new Date(Date.now() - 5400000).toISOString(),
-      image_url: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70'
-    }
-  ],
+  checkins: [],
+  transactions: [],
   payments: [],
   pricingRules: [
     { id: '1', vehicle_type: 'Sedan', service_type: 'Wash', minimum_price: 10000, updated_by: '1', updated_at: new Date().toISOString() },
     { id: '2', vehicle_type: 'Sedan', service_type: 'Wash & Wax', minimum_price: 15000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '3', vehicle_type: 'SUV', service_type: 'Wash', minimum_price: 12000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '4', vehicle_type: 'SUV', service_type: 'Wash & Wax', minimum_price: 18000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '5', vehicle_type: 'Lorry', service_type: 'Wash', minimum_price: 20000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '6', vehicle_type: 'Fuso', service_type: 'Wash', minimum_price: 25000, updated_by: '1', updated_at: new Date().toISOString() }
+    { id: '3', vehicle_type: 'Sedan', service_type: 'Full Detail', minimum_price: 25000, updated_by: '1', updated_at: new Date().toISOString() },
+    { id: '4', vehicle_type: 'Sedan', service_type: 'Interior Only', minimum_price: 8000, updated_by: '1', updated_at: new Date().toISOString() },
+    { id: '5', vehicle_type: 'SUV', service_type: 'Wash', minimum_price: 12000, updated_by: '1', updated_at: new Date().toISOString() },
+    { id: '6', vehicle_type: 'SUV', service_type: 'Wash & Wax', minimum_price: 18000, updated_by: '1', updated_at: new Date().toISOString() },
+    { id: '7', vehicle_type: 'SUV', service_type: 'Full Detail', minimum_price: 30000, updated_by: '1', updated_at: new Date().toISOString() },
+    { id: '8', vehicle_type: 'SUV', service_type: 'Interior Only', minimum_price: 10000, updated_by: '1', updated_at: new Date().toISOString() },
+    { id: '9', vehicle_type: 'Lorry', service_type: 'Wash', minimum_price: 20000, updated_by: '1', updated_at: new Date().toISOString() },
+    { id: '10', vehicle_type: 'Lorry', service_type: 'Wash & Wax', minimum_price: 28000, updated_by: '1', updated_at: new Date().toISOString() },
+    { id: '11', vehicle_type: 'Lorry', service_type: 'Full Detail', minimum_price: 40000, updated_by: '1', updated_at: new Date().toISOString() },
+    { id: '12', vehicle_type: 'Lorry', service_type: 'Interior Only', minimum_price: 15000, updated_by: '1', updated_at: new Date().toISOString() },
+    { id: '13', vehicle_type: 'Fuso', service_type: 'Wash', minimum_price: 25000, updated_by: '1', updated_at: new Date().toISOString() },
+    { id: '14', vehicle_type: 'Fuso', service_type: 'Wash & Wax', minimum_price: 35000, updated_by: '1', updated_at: new Date().toISOString() },
+    { id: '15', vehicle_type: 'Fuso', service_type: 'Full Detail', minimum_price: 50000, updated_by: '1', updated_at: new Date().toISOString() },
+    { id: '16', vehicle_type: 'Fuso', service_type: 'Interior Only', minimum_price: 18000, updated_by: '1', updated_at: new Date().toISOString() }
   ]
 };
 

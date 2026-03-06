@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { PricingRule } from '../lib/types';
-import { pricingRulesApi } from '../lib/mock-api';
+import { pricingRulesApi } from '../lib/api-service';
 import { useAuth } from '../lib/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';

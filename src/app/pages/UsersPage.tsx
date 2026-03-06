@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { User, UserRole } from '../lib/types';
-import { usersApi } from '../lib/mock-api';
+import { usersApi } from '../lib/api-service';
 import { useAuth } from '../lib/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';

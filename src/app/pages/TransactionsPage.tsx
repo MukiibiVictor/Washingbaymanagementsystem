@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Transaction, PaymentMethod } from '../lib/types';
-import { transactionsApi, paymentsApi } from '../lib/mock-api';
+import { transactionsApi, paymentsApi } from '../lib/api-service';
 import { useAuth } from '../lib/auth-context';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';

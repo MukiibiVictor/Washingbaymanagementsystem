@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { DashboardStats } from '../lib/types';
-import { dashboardApi } from '../lib/mock-api';
+import { dashboardApi } from '../lib/api-service';
 import { formatCurrency, formatTimeAgo } from '../lib/utils';
 import { DollarSign, Car, CreditCard, TrendingUp } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
