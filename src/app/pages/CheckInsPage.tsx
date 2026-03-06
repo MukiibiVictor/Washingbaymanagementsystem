@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { CheckIn, VehicleType, ServiceType, PaymentMethod } from '../lib/types';
-import { checkInsApi, pricingRulesApi, paymentsApi } from '../lib/api-service';
+import { CheckIn, VehicleType, ServiceType } from '../lib/types';
+import { checkInsApi, pricingRulesApi } from '../lib/api-service';
 import { useAuth } from '../lib/auth-context';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -16,13 +16,6 @@ import { dataEvents, DATA_EVENTS } from '../lib/events';
 
 const VEHICLE_TYPES: VehicleType[] = ['Sedan', 'SUV', 'Lorry', 'Fuso'];
 const SERVICE_TYPES: ServiceType[] = ['Wash', 'Wash & Wax', 'Full Detail', 'Interior Only'];
-const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
-  { value: 'cash', label: 'Cash' },
-  { value: 'mtn_mobile_money', label: 'MTN Mobile Money' },
-  { value: 'airtel_mobile_money', label: 'Airtel Money' },
-  { value: 'card', label: 'Card' },
-  { value: 'credit', label: 'On Credit' },
-];
 
 export default function CheckInsPage() {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
@@ -53,8 +46,6 @@ export default function CheckInsPage() {
   const [manualServiceType, setManualServiceType] = useState<ServiceType>('Wash');
   const [manualPrice, setManualPrice] = useState('');
   const [manualMinPrice, setManualMinPrice] = useState(0);
-  const [manualPaymentMethod, setManualPaymentMethod] = useState<PaymentMethod>('cash');
-  const [manualPhoneNumber, setManualPhoneNumber] = useState('');
 
   useEffect(() => {
     loadCheckIns();
@@ -156,8 +147,6 @@ export default function CheckInsPage() {
     setManualVehicleType('Sedan');
     setManualServiceType('Wash');
     setManualPrice('');
-    setManualPaymentMethod('cash');
-    setManualPhoneNumber('');
     setCapturedImage(null);
     setTimeout(() => startCamera(), 100);
   };
@@ -186,19 +175,13 @@ export default function CheckInsPage() {
       return;
     }
 
-    // Validate phone number for mobile money
-    if ((manualPaymentMethod === 'mtn_mobile_money' || manualPaymentMethod === 'airtel_mobile_money') && !manualPhoneNumber.trim()) {
-      toast.error('Please enter phone number for mobile money payment');
-      return;
-    }
-
     setUploading(true);
 
     try {
       // Create check-in with captured image
       const checkIn = await checkInsApi.upload(1, capturedImage);
       
-      // Immediately confirm it
+      // Confirm it to create a PENDING transaction (no automatic payment)
       const result = await checkInsApi.confirm(
         checkIn.id,
         {
@@ -210,25 +193,11 @@ export default function CheckInsPage() {
         user.name
       );
 
-      if (result.success && result.transaction) {
-        // Automatically process payment
-        const paymentResult = await paymentsApi.create(
-          result.transaction.id,
-          manualPaymentMethod,
-          priceNum,
-          user.name,
-          manualPhoneNumber || undefined
-        );
-
-        if (paymentResult.success) {
-          const paymentLabel = PAYMENT_METHODS.find(m => m.value === manualPaymentMethod)?.label;
-          toast.success(`Vehicle recorded and payment processed via ${paymentLabel}`);
-          setManualEntryOpen(false);
-          setCapturedImage(null);
-          loadCheckIns();
-        } else {
-          toast.error('Transaction created but payment processing failed');
-        }
+      if (result.success) {
+        toast.success('Vehicle recorded successfully. Go to Transactions page to process payment.');
+        setManualEntryOpen(false);
+        setCapturedImage(null);
+        loadCheckIns();
       } else {
         toast.error(result.error || 'Failed to create transaction');
       }
@@ -620,40 +589,12 @@ export default function CheckInsPage() {
                   <p className="text-xs text-slate-500">Minimum: {formatCurrency(manualMinPrice)}</p>
                 )}
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="manual-payment-method">Payment Method</Label>
-                <Select value={manualPaymentMethod} onValueChange={(v) => setManualPaymentMethod(v as PaymentMethod)}>
-                  <SelectTrigger id="manual-payment-method">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_METHODS.map((method) => (
-                      <SelectItem key={method.value} value={method.value}>
-                        {method.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Phone Number for Mobile Money */}
-              {(manualPaymentMethod === 'mtn_mobile_money' || manualPaymentMethod === 'airtel_mobile_money') && (
-                <div className="space-y-2">
-                  <Label htmlFor="manual-phone">Phone Number</Label>
-                  <Input
-                    id="manual-phone"
-                    type="tel"
-                    placeholder="e.g. 0700123456"
-                    value={manualPhoneNumber}
-                    onChange={(e) => setManualPhoneNumber(e.target.value)}
-                    className="font-mono"
-                  />
-                  <p className="text-xs text-slate-500">
-                    {manualPaymentMethod === 'mtn_mobile_money' ? 'MTN' : 'Airtel'} registered phone number
-                  </p>
-                </div>
-              )}
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                ℹ️ Transaction will be created as "pending". Go to Transactions page to process payment.
+              </p>
             </div>
 
             {/* Action Buttons */}

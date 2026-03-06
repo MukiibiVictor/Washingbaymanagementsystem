@@ -1,1 +1,8 @@
 node_modules
+
+# Database files
+server/database.json
+
+# Environment files
+.env
+server/.env

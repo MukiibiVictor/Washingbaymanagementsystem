@@ -5,15 +5,139 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Download, TrendingUp, DollarSign, Receipt, Calendar } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
+import { transactionsApi, expensesApi } from '../lib/api-service';
+import { Transaction } from '../lib/types';
+import { dataEvents, DATA_EVENTS } from '../lib/events';
+import { toast } from 'sonner';
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [trendData, setTrendData] = useState<any[]>([]);
+  const [expenseByCategory, setExpenseByCategory] = useState<any[]>([]);
 
-  // Start with empty data - will be populated from actual transactions
-  const trendData: any[] = [];
-  const expenseByCategory: any[] = [];
+  useEffect(() => {
+    loadData();
+
+    // Listen for changes
+    const handleDataChange = () => {
+      loadData();
+    };
+
+    dataEvents.on(DATA_EVENTS.TRANSACTION_CREATED, handleDataChange);
+    dataEvents.on(DATA_EVENTS.TRANSACTION_UPDATED, handleDataChange);
+    dataEvents.on(DATA_EVENTS.PAYMENT_CREATED, handleDataChange);
+    dataEvents.on(DATA_EVENTS.EXPENSE_CREATED, handleDataChange);
+    dataEvents.on(DATA_EVENTS.EXPENSE_UPDATED, handleDataChange);
+
+    return () => {
+      dataEvents.off(DATA_EVENTS.TRANSACTION_CREATED, handleDataChange);
+      dataEvents.off(DATA_EVENTS.TRANSACTION_UPDATED, handleDataChange);
+      dataEvents.off(DATA_EVENTS.PAYMENT_CREATED, handleDataChange);
+      dataEvents.off(DATA_EVENTS.EXPENSE_CREATED, handleDataChange);
+      dataEvents.off(DATA_EVENTS.EXPENSE_UPDATED, handleDataChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Recalculate when data changes
+    calculateTrendData();
+    calculateExpensesByCategory();
+  }, [transactions, expenses, period, selectedMonth, selectedYear]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [txData, expData] = await Promise.all([
+        transactionsApi.getAll(),
+        expensesApi.getAll(),
+      ]);
+      setTransactions(txData);
+      setExpenses(expData);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      toast.error('Failed to load report data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateTrendData = () => {
+    // Filter paid transactions only
+    const paidTransactions = transactions.filter(t => t.status === 'paid');
+
+    if (paidTransactions.length === 0 && expenses.length === 0) {
+      setTrendData([]);
+      return;
+    }
+
+    // Group by date
+    const dataByDate: { [key: string]: { revenue: number; expenses: number } } = {};
+
+    // Add revenue
+    paidTransactions.forEach(tx => {
+      const date = new Date(tx.created_at);
+      const dateKey = date.toISOString().split('T')[0];
+
+      if (!dataByDate[dateKey]) {
+        dataByDate[dateKey] = { revenue: 0, expenses: 0 };
+      }
+
+      dataByDate[dateKey].revenue += tx.price;
+    });
+
+    // Add expenses
+    expenses.forEach(exp => {
+      const date = new Date(exp.date);
+      const dateKey = date.toISOString().split('T')[0];
+
+      if (!dataByDate[dateKey]) {
+        dataByDate[dateKey] = { revenue: 0, expenses: 0 };
+      }
+
+      dataByDate[dateKey].expenses += exp.amount;
+    });
+
+    // Convert to array and sort
+    const trend = Object.entries(dataByDate)
+      .map(([date, data]) => ({
+        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        revenue: data.revenue,
+        expenses: data.expenses,
+        net_income: data.revenue - data.expenses,
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(-30); // Last 30 days
+
+    setTrendData(trend);
+  };
+
+  const calculateExpensesByCategory = () => {
+    if (expenses.length === 0) {
+      setExpenseByCategory([]);
+      return;
+    }
+
+    const byCategory: { [key: string]: number } = {};
+
+    expenses.forEach(exp => {
+      if (!byCategory[exp.category]) {
+        byCategory[exp.category] = 0;
+      }
+      byCategory[exp.category] += exp.amount;
+    });
+
+    const categoryData = Object.entries(byCategory).map(([category, amount]) => ({
+      category: category.charAt(0).toUpperCase() + category.slice(1),
+      amount,
+    }));
+
+    setExpenseByCategory(categoryData);
+  };
 
   const totalRevenue = trendData.reduce((sum, d) => sum + (d.revenue || 0), 0);
   const totalExpenses = trendData.reduce((sum, d) => sum + (d.expenses || 0), 0);

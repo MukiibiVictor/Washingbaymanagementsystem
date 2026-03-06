@@ -2,6 +2,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../lib/auth-context';
 import { Button } from './ui/button';
 import { ThemeToggle } from './ThemeToggle';
+import Footer from './Footer';
 import {
   LayoutDashboard,
   Camera,
@@ -14,18 +15,20 @@ import {
   X,
   TrendingUp,
   FileText,
+  Sparkles,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import zeroLogo from '../../assets/7c8b52700404010ef9d70a93ba8a793d0656723b.png';
 
 const NAV_ITEMS = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'viewer'] },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['superadmin', 'admin'] },
   { path: '/checkins', label: 'Check-ins', icon: Camera, roles: ['superadmin', 'admin'] },
-  { path: '/transactions', label: 'Transactions', icon: Receipt, roles: ['superadmin', 'admin', 'viewer'] },
+  { path: '/transactions', label: 'Transactions', icon: Receipt, roles: ['superadmin', 'admin'] },
   { path: '/expenses', label: 'Expenses', icon: DollarSign, roles: ['superadmin', 'admin'] },
-  { path: '/reports', label: 'Reports', icon: TrendingUp, roles: ['superadmin', 'admin', 'viewer'] },
+  { path: '/reports', label: 'Reports', icon: TrendingUp, roles: ['superadmin', 'admin'] },
+  { path: '/services', label: 'Services', icon: Sparkles, roles: ['superadmin', 'admin', 'viewer'] },
   { path: '/pricing', label: 'Pricing', icon: FileText, roles: ['superadmin', 'admin', 'viewer'] },
-  { path: '/users', label: 'Users', icon: Users, roles: ['superadmin', 'admin', 'viewer'] },
+  { path: '/users', label: 'Users', icon: Users, roles: ['superadmin', 'admin'] },
 ];
 
 export default function Layout() {
@@ -33,6 +36,13 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Redirect viewers to services page if they try to access restricted pages
+  useEffect(() => {
+    if (user?.role === 'viewer' && location.pathname === '/') {
+      navigate('/services');
+    }
+  }, [user, location.pathname, navigate]);
 
   const handleLogout = () => {
     logout();
@@ -165,6 +175,9 @@ export default function Layout() {
           </main>
         </div>
       </div>
+      
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

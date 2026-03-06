@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -10,6 +10,9 @@ import { Plus, Receipt, Trash2 } from 'lucide-react';
 import { formatCurrency, formatTimeAgo } from '../lib/utils';
 import { toast } from 'sonner';
 import type { Expense, ExpenseCategory } from '../lib/types';
+import { expensesApi } from '../lib/api-service';
+import { useAuth } from '../lib/auth-context';
+import { dataEvents, DATA_EVENTS } from '../lib/events';
 
 const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
   { value: 'supplies', label: 'Supplies' },
@@ -22,39 +25,77 @@ const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
 ];
 
 export default function ExpensesPage() {
+  const { user } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [category, setCategory] = useState<ExpenseCategory>('supplies');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
-  const handleAddExpense = () => {
-    if (!description || !amount) {
+  useEffect(() => {
+    loadExpenses();
+
+    // Listen for expense changes
+    const handleDataChange = () => {
+      loadExpenses();
+    };
+
+    dataEvents.on(DATA_EVENTS.EXPENSE_CREATED, handleDataChange);
+    dataEvents.on(DATA_EVENTS.EXPENSE_UPDATED, handleDataChange);
+
+    return () => {
+      dataEvents.off(DATA_EVENTS.EXPENSE_CREATED, handleDataChange);
+      dataEvents.off(DATA_EVENTS.EXPENSE_UPDATED, handleDataChange);
+    };
+  }, []);
+
+  const loadExpenses = async () => {
+    setLoading(true);
+    try {
+      const data = await expensesApi.getAll();
+      setExpenses(data);
+    } catch (error) {
+      console.error('Failed to load expenses:', error);
+      toast.error('Failed to load expenses');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddExpense = async () => {
+    if (!description || !amount || !user) {
       toast.error('Please fill all fields');
       return;
     }
 
-    const newExpense: Expense = {
-      id: Date.now().toString(),
+    const result = await expensesApi.create({
       category,
       description,
       amount: parseInt(amount),
       date: new Date(date).toISOString(),
-      created_by: 'Current User',
-      created_at: new Date().toISOString(),
-    };
+      created_by: user.name,
+    });
 
-    setExpenses([newExpense, ...expenses]);
-    setDialogOpen(false);
-    setDescription('');
-    setAmount('');
-    toast.success('Expense added successfully');
+    if (result.success) {
+      setDialogOpen(false);
+      setDescription('');
+      setAmount('');
+      setCategory('supplies');
+      toast.success('Expense added successfully');
+    } else {
+      toast.error('Failed to add expense');
+    }
   };
 
-  const handleDeleteExpense = (id: string) => {
-    setExpenses(expenses.filter(e => e.id !== id));
-    toast.success('Expense deleted');
+  const handleDeleteExpense = async (id: string) => {
+    const result = await expensesApi.delete(id);
+    if (result.success) {
+      toast.success('Expense deleted');
+    } else {
+      toast.error('Failed to delete expense');
+    }
   };
 
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);

@@ -28,6 +28,7 @@ export default function TransactionsPage() {
   const [pendingTransactions, setPendingTransactions] = useState<Transaction[]>([]);
   const [creditTransactions, setCreditTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -56,15 +57,26 @@ export default function TransactionsPage() {
 
   const loadTransactions = async () => {
     setLoading(true);
-    const [all, pending, credit] = await Promise.all([
-      transactionsApi.getAll(),
-      transactionsApi.getPending(),
-      transactionsApi.getCredit(),
-    ]);
-    setAllTransactions(all);
-    setPendingTransactions(pending);
-    setCreditTransactions(credit);
-    setLoading(false);
+    setError(false);
+    try {
+      const [all, pending, credit] = await Promise.all([
+        transactionsApi.getAll(),
+        transactionsApi.getPending(),
+        transactionsApi.getCredit(),
+      ]);
+      setAllTransactions(all);
+      setPendingTransactions(pending);
+      setCreditTransactions(credit);
+    } catch (error) {
+      console.error('Failed to load transactions:', error);
+      setError(true);
+      toast.error('Failed to load transactions. Please check if the backend is running.');
+      setAllTransactions([]);
+      setPendingTransactions([]);
+      setCreditTransactions([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePaymentClick = (transaction: Transaction) => {
@@ -219,7 +231,31 @@ export default function TransactionsPage() {
 
         <TabsContent value="all" className="space-y-4">
           {loading ? (
-            <p>Loading...</p>
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-center text-gray-500 py-8">Loading transactions...</p>
+              </CardContent>
+            </Card>
+          ) : error ? (
+            <Card className="border-red-200 bg-red-50 dark:bg-red-900/10">
+              <CardContent className="pt-6">
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Car className="w-10 h-10 text-red-600" />
+                  </div>
+                  <p className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">Failed to Load Transactions</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                    Unable to connect to the backend server.
+                  </p>
+                  <button
+                    onClick={loadTransactions}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Retry Connection
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
           ) : allTransactions.length === 0 ? (
             <Card>
               <CardContent className="pt-6">

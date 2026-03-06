@@ -172,6 +172,17 @@ export const usersApi = {
     password: string;
   }): Promise<{ success: boolean; user?: User; error?: string }> => {
     try {
+      // If creating a viewer account, use public registration endpoint
+      if (data.role === 'viewer') {
+        const response = await apiClient.post<{ success: boolean; user: User }>('/auth/register', {
+          email: data.email,
+          name: data.name,
+          password: data.password,
+        });
+        return { success: true, user: response.user };
+      }
+      
+      // Otherwise use admin endpoint for creating admin/superadmin accounts
       const response = await apiClient.post<{ success: boolean; user: User }>('/users', data);
       return { success: true, user: response.user };
     } catch (error: any) {
@@ -223,6 +234,130 @@ export const usersApi = {
       return response.data;
     } catch {
       return null;
+    }
+  },
+};
+
+// Expenses API
+export const expensesApi = {
+  getAll: async (): Promise<any[]> => {
+    try {
+      const response = await apiClient.get<{ success: boolean; data: any[] }>('/expenses');
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+
+  create: async (data: {
+    category: string;
+    description: string;
+    amount: number;
+    date: string;
+    created_by: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> => {
+    try {
+      const response = await apiClient.post<{ success: boolean; data: any }>('/expenses', data);
+      
+      // Emit event for real-time updates
+      dataEvents.emit(DATA_EVENTS.EXPENSE_CREATED);
+      
+      return { success: true, data: response.data };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  update: async (id: string, data: any): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await apiClient.put(`/expenses/${id}`, data);
+      
+      // Emit event for real-time updates
+      dataEvents.emit(DATA_EVENTS.EXPENSE_UPDATED);
+      
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  delete: async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await apiClient.delete(`/expenses/${id}`);
+      
+      // Emit event for real-time updates
+      dataEvents.emit(DATA_EVENTS.EXPENSE_UPDATED);
+      
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  },
+};
+
+// Services API (Public - no auth required)
+export const servicesApi = {
+  getAll: async (): Promise<any[]> => {
+    try {
+      const response = await apiClient.get<{ success: boolean; data: any[] }>('/services');
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+
+  create: async (data: {
+    title: string;
+    description: string;
+    features: string[];
+    image_url?: string;
+    price_range: string;
+    duration: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> => {
+    try {
+      const response = await apiClient.post<{ success: boolean; data: any }>('/services', data);
+      return { success: true, data: response.data };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  update: async (id: string, data: any): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await apiClient.put(`/services/${id}`, data);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  delete: async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await apiClient.delete(`/services/${id}`);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  },
+};
+
+// Footer API (Public read, superadmin write)
+export const footerApi = {
+  get: async (): Promise<any> => {
+    try {
+      const response = await apiClient.get<{ success: boolean; data: any }>('/footer');
+      return response.data;
+    } catch {
+      return null;
+    }
+  },
+
+  update: async (data: any): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await apiClient.put('/footer', data);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
     }
   },
 };

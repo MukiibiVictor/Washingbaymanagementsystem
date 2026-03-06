@@ -7,10 +7,12 @@ import { DollarSign, Car, CreditCard, TrendingUp } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
 import { dataEvents, DATA_EVENTS } from '../lib/events';
+import { toast } from 'sonner';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     loadStats();
@@ -33,9 +35,17 @@ export default function DashboardPage() {
 
   const loadStats = async () => {
     setLoading(true);
-    const data = await dashboardApi.getStats();
-    setStats(data);
-    setLoading(false);
+    setError(false);
+    try {
+      const data = await dashboardApi.getStats();
+      setStats(data);
+    } catch (err) {
+      console.error('Failed to load dashboard stats:', err);
+      setError(true);
+      toast.error('Failed to load dashboard. Please ensure the backend server is running.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -56,6 +66,38 @@ export default function DashboardPage() {
             </Card>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-400 bg-clip-text text-transparent">Dashboard</h1>
+        <Card className="border-red-200 bg-red-50 dark:bg-red-900/10">
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <div className="w-20 h-20 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <TrendingUp className="w-10 h-10 text-red-600" />
+              </div>
+              <p className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">Failed to Load Dashboard</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                Unable to connect to the backend server. Please ensure:
+              </p>
+              <ul className="text-sm text-slate-600 dark:text-slate-400 text-left max-w-md mx-auto mb-6 space-y-1">
+                <li>• Backend server is running on http://localhost:3001</li>
+                <li>• Run: <code className="bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded">cd server && npm start</code></li>
+                <li>• Check browser console for errors</li>
+              </ul>
+              <button
+                onClick={loadStats}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Retry Connection
+              </button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

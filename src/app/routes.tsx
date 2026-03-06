@@ -9,6 +9,7 @@ import ExpensesPage from './pages/ExpensesPage';
 import ReportsPage from './pages/ReportsPage';
 import ProfilePage from './pages/ProfilePage';
 import UserProfilesPage from './pages/UserProfilesPage';
+import ServicesPage from './pages/ServicesPage';
 import NotFoundPage from './pages/NotFoundPage';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -62,6 +63,10 @@ export const router = createBrowserRouter([
       {
         path: 'user-profiles',
         element: <UserProfilesPage />,
+      },
+      {
+        path: 'services',
+        element: <ServicesPage />,
       },
       {
         path: '*',

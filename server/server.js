@@ -1,6 +1,7 @@
 ﻿import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { loadDatabase, saveDatabase } from './database.js';
 
 dotenv.config();
 
@@ -11,40 +12,14 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', express.static('uploads'));
 
-// In-memory database - starts empty, only default admin user and pricing rules
-const db = {
-  users: [
-    { 
-      id: '1', 
-      email: 'admin@zoriautospa.com', 
-      password: 'admin123', 
-      name: 'Admin User', 
-      role: 'superadmin', 
-      created_at: new Date().toISOString() 
-    }
-  ],
-  checkins: [],
-  transactions: [],
-  payments: [],
-  pricingRules: [
-    { id: '1', vehicle_type: 'Sedan', service_type: 'Wash', minimum_price: 10000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '2', vehicle_type: 'Sedan', service_type: 'Wash & Wax', minimum_price: 15000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '3', vehicle_type: 'Sedan', service_type: 'Full Detail', minimum_price: 25000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '4', vehicle_type: 'Sedan', service_type: 'Interior Only', minimum_price: 8000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '5', vehicle_type: 'SUV', service_type: 'Wash', minimum_price: 12000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '6', vehicle_type: 'SUV', service_type: 'Wash & Wax', minimum_price: 18000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '7', vehicle_type: 'SUV', service_type: 'Full Detail', minimum_price: 30000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '8', vehicle_type: 'SUV', service_type: 'Interior Only', minimum_price: 10000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '9', vehicle_type: 'Lorry', service_type: 'Wash', minimum_price: 20000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '10', vehicle_type: 'Lorry', service_type: 'Wash & Wax', minimum_price: 28000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '11', vehicle_type: 'Lorry', service_type: 'Full Detail', minimum_price: 40000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '12', vehicle_type: 'Lorry', service_type: 'Interior Only', minimum_price: 15000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '13', vehicle_type: 'Fuso', service_type: 'Wash', minimum_price: 25000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '14', vehicle_type: 'Fuso', service_type: 'Wash & Wax', minimum_price: 35000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '15', vehicle_type: 'Fuso', service_type: 'Full Detail', minimum_price: 50000, updated_by: '1', updated_at: new Date().toISOString() },
-    { id: '16', vehicle_type: 'Fuso', service_type: 'Interior Only', minimum_price: 18000, updated_by: '1', updated_at: new Date().toISOString() }
-  ]
-};
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// Load persistent database from file
+const db = loadDatabase();
 
 // Auth Routes
 app.post('/api/auth/login', (req, res) => {
@@ -58,6 +33,33 @@ app.post('/api/auth/login', (req, res) => {
   } else {
     res.status(401).json({ success: false, error: 'Invalid credentials' });
   }
+});
+
+// Public user registration (creates viewer accounts only)
+app.post('/api/auth/register', (req, res) => {
+  const { email, name, password } = req.body;
+  
+  // Check if user already exists
+  const existingUser = db.users.find(u => u.email === email);
+  if (existingUser) {
+    return res.status(400).json({ success: false, error: 'Email already registered' });
+  }
+
+  // Create new viewer account
+  const newUser = {
+    id: Date.now().toString(),
+    email,
+    name,
+    password,
+    role: 'viewer',
+    created_at: new Date().toISOString()
+  };
+  
+  db.users.push(newUser);
+  saveDatabase(db);
+  
+  const { password: _, ...userData } = newUser;
+  res.json({ success: true, user: userData });
 });
 
 app.get('/api/auth/me', (req, res) => {
@@ -93,6 +95,7 @@ app.put('/api/users/:id/profile', (req, res) => {
   const userIndex = db.users.findIndex(u => u.id === req.params.id);
   if (userIndex !== -1) {
     db.users[userIndex] = { ...db.users[userIndex], ...req.body };
+    saveDatabase(db);
     const { password, ...userData } = db.users[userIndex];
     res.json({ success: true, user: userData });
   } else {
@@ -107,6 +110,7 @@ app.post('/api/users', (req, res) => {
     created_at: new Date().toISOString()
   };
   db.users.push(newUser);
+  saveDatabase(db);
   const { password, ...userData } = newUser;
   res.json({ success: true, user: userData });
 });
@@ -115,6 +119,7 @@ app.delete('/api/users/:id', (req, res) => {
   const index = db.users.findIndex(u => u.id === req.params.id);
   if (index !== -1) {
     db.users.splice(index, 1);
+    saveDatabase(db);
     res.json({ success: true });
   } else {
     res.status(404).json({ success: false, error: 'User not found' });
@@ -139,6 +144,7 @@ app.post('/api/checkins', (req, res) => {
     status: 'pending'
   };
   db.checkins.push(newCheckin);
+  saveDatabase(db);
   res.json({ success: true, data: newCheckin });
 });
 
@@ -161,6 +167,7 @@ app.put('/api/checkins/:id/confirm', (req, res) => {
       image_url: db.checkins[index].image_url
     };
     db.transactions.push(newTransaction);
+    saveDatabase(db);
     
     res.json({ success: true, transaction: newTransaction });
   } else {
@@ -173,15 +180,7 @@ app.get('/api/transactions', (req, res) => {
   res.json({ success: true, data: db.transactions });
 });
 
-app.get('/api/transactions/:id', (req, res) => {
-  const transaction = db.transactions.find(t => t.id === req.params.id);
-  if (transaction) {
-    res.json({ success: true, data: transaction });
-  } else {
-    res.status(404).json({ success: false, error: 'Transaction not found' });
-  }
-});
-
+// Specific routes MUST come before parameterized routes
 app.get('/api/transactions/pending', (req, res) => {
   const pending = db.transactions.filter(t => t.status === 'pending');
   res.json({ success: true, data: pending });
@@ -190,6 +189,16 @@ app.get('/api/transactions/pending', (req, res) => {
 app.get('/api/transactions/credit', (req, res) => {
   const credit = db.transactions.filter(t => t.status === 'credit');
   res.json({ success: true, data: credit });
+});
+
+// Parameterized route comes last
+app.get('/api/transactions/:id', (req, res) => {
+  const transaction = db.transactions.find(t => t.id === req.params.id);
+  if (transaction) {
+    res.json({ success: true, data: transaction });
+  } else {
+    res.status(404).json({ success: false, error: 'Transaction not found' });
+  }
 });
 
 app.post('/api/transactions/:id/payment', (req, res) => {
@@ -207,6 +216,7 @@ app.post('/api/transactions/:id/payment', (req, res) => {
       created_at: new Date().toISOString()
     };
     db.payments.push(payment);
+    saveDatabase(db);
     
     res.json({ success: true, payment });
   } else {
@@ -228,6 +238,7 @@ app.put('/api/pricing/:id', (req, res) => {
       updated_by: req.body.updated_by,
       updated_at: new Date().toISOString()
     };
+    saveDatabase(db);
     res.json({ success: true });
   } else {
     res.status(404).json({ success: false, error: 'Pricing rule not found' });
@@ -282,6 +293,105 @@ app.get('/api/dashboard/stats', (req, res) => {
       recent_transactions: db.transactions.slice(0, 10)
     }
   });
+});
+
+// Expenses Routes
+app.get('/api/expenses', (req, res) => {
+  res.json({ success: true, data: db.expenses });
+});
+
+app.post('/api/expenses', (req, res) => {
+  const newExpense = {
+    id: 'exp-' + Date.now(),
+    ...req.body,
+    created_at: new Date().toISOString()
+  };
+  db.expenses.push(newExpense);
+  saveDatabase(db);
+  res.json({ success: true, data: newExpense });
+});
+
+app.put('/api/expenses/:id', (req, res) => {
+  const index = db.expenses.findIndex(e => e.id === req.params.id);
+  if (index !== -1) {
+    db.expenses[index] = {
+      ...db.expenses[index],
+      ...req.body,
+      updated_at: new Date().toISOString()
+    };
+    saveDatabase(db);
+    res.json({ success: true, data: db.expenses[index] });
+  } else {
+    res.status(404).json({ success: false, error: 'Expense not found' });
+  }
+});
+
+app.delete('/api/expenses/:id', (req, res) => {
+  const index = db.expenses.findIndex(e => e.id === req.params.id);
+  if (index !== -1) {
+    db.expenses.splice(index, 1);
+    saveDatabase(db);
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ success: false, error: 'Expense not found' });
+  }
+});
+
+// Services Routes (Public - no auth required)
+app.get('/api/services', (req, res) => {
+  res.json({ success: true, data: db.services });
+});
+
+app.post('/api/services', (req, res) => {
+  const newService = {
+    id: 'srv-' + Date.now(),
+    ...req.body,
+    created_at: new Date().toISOString()
+  };
+  db.services.push(newService);
+  saveDatabase(db);
+  res.json({ success: true, data: newService });
+});
+
+app.put('/api/services/:id', (req, res) => {
+  const index = db.services.findIndex(s => s.id === req.params.id);
+  if (index !== -1) {
+    db.services[index] = {
+      ...db.services[index],
+      ...req.body,
+      updated_at: new Date().toISOString()
+    };
+    saveDatabase(db);
+    res.json({ success: true, data: db.services[index] });
+  } else {
+    res.status(404).json({ success: false, error: 'Service not found' });
+  }
+});
+
+app.delete('/api/services/:id', (req, res) => {
+  const index = db.services.findIndex(s => s.id === req.params.id);
+  if (index !== -1) {
+    db.services.splice(index, 1);
+    saveDatabase(db);
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ success: false, error: 'Service not found' });
+  }
+});
+
+// Footer Routes (Public read, superadmin write)
+app.get('/api/footer', (req, res) => {
+  res.json({ success: true, data: db.footer });
+});
+
+app.put('/api/footer', (req, res) => {
+  db.footer = {
+    ...db.footer,
+    ...req.body,
+    updated_at: new Date().toISOString()
+  };
+  saveDatabase(db);
+  res.json({ success: true, data: db.footer });
 });
 
 app.get('/api/health', (req, res) => {
