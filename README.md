@@ -1,8 +1,6 @@
 
   # Washing Bay Management System
 
-This is a code bundle for Washing Bay Management System. The original project is available at https://www.figma.com/design/fM1QuMBIdZFTA1BxTbLfbA/Washing-Bay-Management-System.
-
 ## Features
 
 ### Core Functionality
