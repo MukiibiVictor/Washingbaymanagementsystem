@@ -1,40 +1,40 @@
 
-  # Washing Bay Management System
+  Washing Bay Management System
 
-## Features
+Features
 
-### Core Functionality
-- 🚗 Vehicle check-in management with camera integration
-- 💰 Transaction and payment processing (Cash, MTN Mobile Money, Airtel Money, Card, Credit)
-- 📊 Real-time dashboard with revenue tracking
-- 👥 User management with role-based access (SuperAdmin, Admin, Viewer)
-- 💵 Financial tracking with expenses and reports
-- 📈 Trend analysis with charts and graphs
-- 🌓 Dark/Light mode with custom theme
+Core Functionality
+- Vehicle check-in management with camera integration
+- Transaction and payment processing (Cash, MTN Mobile Money, Airtel Money, Card, Credit)
+-  Real-time dashboard with revenue tracking
+-  User management with role-based access (SuperAdmin, Admin, Viewer)
+-  Financial tracking with expenses and reports
+-  Trend analysis with charts and graphs
+-  Dark/Light mode with custom theme
 
-### Manual Vehicle Entry
-- 📸 Live camera capture for vehicle photos
-- ✍️ Manual data entry when cameras are offline
-- ✅ Immediate transaction creation
-- 🔄 Real-time updates across all pages
+ Manual Vehicle Entry
+-  Live camera capture for vehicle photos
+-  Manual data entry when cameras are offline
+-  Immediate transaction creation
+-  Real-time updates across all pages
 
-### Real-Time Updates
+ Real-Time Updates
 - Dashboard automatically refreshes when transactions change
 - Transactions page updates in real-time
 - Check-ins page reflects new entries immediately
 - No manual page refresh needed
 
-## Quick Start
+ Quick Start
 
 See **[QUICK_START.md](QUICK_START.md)** for a step-by-step guide to get started in 3 minutes!
 
-## Running the Code
+Running the Code
 
-### Prerequisites
+ Prerequisites
 - Node.js (v16 or higher)
 - npm or yarn
 
-### Backend Setup
+ Backend Setup
 ```bash
 cd server
 npm install
@@ -42,19 +42,19 @@ npm start
 ```
 Backend runs on: http://localhost:3001
 
-### Frontend Setup
+ Frontend Setup
 ```bash
 npm install
 npm run dev
 ```
 Frontend runs on: http://localhost:5173
 
-### Important Notes
+ Important Notes
 - Backend must be running before starting frontend
 - Data is stored in-memory (resets on server restart)
 - For production, migrate to PostgreSQL or MongoDB
 
-## Documentation
+ Documentation
 
 - **[QUICK_START.md](QUICK_START.md)** - Get started in 3 minutes
 - **[PERFORMANCE_IMPROVEMENTS.md](PERFORMANCE_IMPROVEMENTS.md)** - Latest performance fixes and payment flow
@@ -66,20 +66,20 @@ Frontend runs on: http://localhost:5173
 - **[MIGRATION_SUMMARY.md](MIGRATION_SUMMARY.md)** - Database migration details
 - **[TASK_COMPLETION_SUMMARY.md](TASK_COMPLETION_SUMMARY.md)** - Implementation summary
 
-## User Roles
+ User Roles
 
 - **SuperAdmin** - Full access to all features including user management
 - **Admin** - Can manage check-ins, transactions, and payments
 - **Viewer** - Read-only access to view data
 
-## Default Login
+ Default Login
 
 ```
 Email: admin@zoriautospa.com
 Password: admin123
 ```
 
-## Tech Stack
+ Tech Stack
 
 - React + TypeScript
 - Vite
